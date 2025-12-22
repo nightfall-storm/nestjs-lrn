@@ -7,11 +7,17 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from "@nestjs/common";
 import { UsersService } from "./users.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 
 @UseGuards(JwtAuthGuard)
@@ -29,8 +35,15 @@ export class UsersController {
 
   @Get()
   @ApiOperation({ summary: "Get all users" })
-  findAll() {
-    return this.usersService.findAll();
+  @ApiQuery({ name: "current_page", type: Number, required: false })
+  @ApiQuery({ name: "per_page", type: Number, required: false })
+  @ApiQuery({ name: "search", type: String, required: false })
+  findAll(
+    @Query("current_page") currentPage: number = 1,
+    @Query("per_page") perPage: number = 10,
+    @Query("search") search: string = "",
+  ) {
+    return this.usersService.findAll(currentPage, perPage, search);
   }
 
   @Get(":id")

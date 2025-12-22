@@ -7,6 +7,7 @@ import {
   extractUniqueConstraintField,
 } from "../common/utils/postgres-error.util";
 import * as argon2 from "argon2";
+import type { FindAllUsersResponse } from "./types/user.types";
 
 @Injectable()
 export class UsersService {
@@ -36,13 +37,38 @@ export class UsersService {
     }
   }
 
-  async findAll() {
-    const users = await this.prisma.user.findMany();
-    return users.map((user) => ({
-      id: user.id,
-      email: user.email,
-      createdAt: user.createdAt,
-    }));
+  async findAll(
+    currentPage: number = 1,
+    perPage: number = 10,
+    search: string = "",
+  ): Promise<FindAllUsersResponse> {
+    const where = search
+      ? {
+          email: {
+            contains: search,
+            mode: "insensitive" as const,
+          },
+        }
+      : {};
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip: (currentPage - 1) * perPage,
+        take: perPage,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      data: users,
+      pagination: {
+        currentPage: currentPage,
+        perPage: perPage,
+        lastPage: Math.ceil(total / perPage),
+        total: total,
+      },
+    };
   }
 
   async findOne(id: number) {
