@@ -1,7 +1,11 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  handlePostgresError,
+  extractUniqueConstraintField,
+} from "../common/utils/postgres-error.util";
 import * as argon2 from "argon2";
 
 @Injectable()
@@ -9,38 +13,81 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto) {
-    const { email, password } = createUserDto;
+    try {
+      const { email, password } = createUserDto;
 
-    const hashedPassword = await argon2.hash(password);
+      const hashedPassword = await argon2.hash(password);
 
-    return await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-      },
-    });
+      const user = await this.prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+        },
+      });
+
+      return {
+        id: user.id,
+        email: user.email,
+        createdAt: user.createdAt,
+      };
+    } catch (error) {
+      const field = extractUniqueConstraintField(error);
+      handlePostgresError(error, field || "email");
+    }
   }
 
   async findAll() {
-    return await this.prisma.user.findMany();
+    const users = await this.prisma.user.findMany();
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      createdAt: user.createdAt,
+    }));
   }
 
   async findOne(id: number) {
-    return await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id },
     });
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+    return {
+      id: user?.id,
+      email: user?.email,
+      createdAt: user?.createdAt,
+    };
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    return await this.prisma.user.update({
-      where: { id },
-      data: updateUserDto,
-    });
+    try {
+      const user = await this.prisma.user.update({
+        where: { id },
+        data: updateUserDto,
+      });
+      return {
+        id: user.id,
+        email: user.email,
+        createdAt: user.createdAt,
+      };
+    } catch (error) {
+      const field = extractUniqueConstraintField(error);
+      handlePostgresError(error, field);
+    }
   }
 
   async remove(id: number) {
-    return await this.prisma.user.delete({
-      where: { id },
-    });
+    try {
+      const user = await this.prisma.user.delete({
+        where: { id },
+      });
+      return {
+        id: user.id,
+        email: user.email,
+        createdAt: user.createdAt,
+      };
+    } catch (error) {
+      handlePostgresError(error, "Not found");
+    }
   }
 }
