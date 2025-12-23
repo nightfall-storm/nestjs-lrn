@@ -7,6 +7,7 @@ import {
   extractUniqueConstraintField,
   handlePostgresError,
 } from "src/common/utils/postgres-error.util";
+import { Role } from "@prisma/client";
 
 @Injectable()
 export class AuthService {
@@ -60,6 +61,7 @@ export class AuthService {
     return this.generateJwt(
       user.id,
       user.email,
+      user.role,
       user.createdAt,
       userAgent,
       ipAddress,
@@ -69,11 +71,12 @@ export class AuthService {
   async generateJwt(
     id: number,
     email: string,
+    role: Role,
     createdAt: Date,
     userAgent?: string,
     ipAddress?: string,
   ) {
-    const payload = { sub: id, email: email };
+    const payload = { sub: id, email: email, role: role };
 
     const refreshTokenExpiresIn = Number(process.env.JWT_REFRESH_EXPIRES_IN!);
     const refreshToken = await this.jwtService.signAsync(payload, {
@@ -110,6 +113,7 @@ export class AuthService {
     const payload = await this.jwtService.verifyAsync<{
       sub: number;
       email: string;
+      role: Role;
     }>(refreshToken, {
       secret: process.env.JWT_REFRESH_SECRET!,
     });

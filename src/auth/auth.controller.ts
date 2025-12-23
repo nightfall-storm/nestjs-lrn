@@ -7,12 +7,14 @@ import { LocalAuthGuard } from "./guards/local-auth.guard";
 import { RefreshTokenGuard } from "./guards/refresh-token.guard";
 import { Request as ExpressRequest } from "express";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { Role } from "@prisma/client";
 
 // 1. Create a typed Request interface so ESLint stays quiet
 interface RequestWithUser extends ExpressRequest {
   user: {
     id: number;
     email: string;
+    role: Role;
     createdAt: Date;
   };
 }
@@ -70,6 +72,7 @@ export class AuthController {
     return this.authService.generateJwt(
       req.user.id,
       req.user.email,
+      req.user.role,
       req.user.createdAt,
       userAgent,
       ipAddress,

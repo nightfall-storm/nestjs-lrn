@@ -12,12 +12,18 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  ADMIN
+  USER
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
   RefreshToken RefreshToken[]
+  role        Role     @default(USER)
 }
 
 model RefreshToken {
