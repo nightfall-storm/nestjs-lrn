@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { AuthDto } from "./dto/auth.dto";
 import { PrismaService } from "src/prisma/prisma.service";
 import * as argon2 from "argon2";
@@ -29,10 +29,74 @@ export class AuthService {
     return null;
   }
 
-  async generateJwt(id: number, email: string, createdAt: Date) {
+  async refreshToken(
+    userId: number,
+    oldRefreshToken: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
+    // Get user to retrieve email and createdAt
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    // Revoke the old refresh token
+    await this.prisma.refreshToken.updateMany({
+      where: {
+        userId,
+        token: oldRefreshToken,
+        revoked: false,
+      },
+      data: {
+        revoked: true,
+      },
+    });
+
+    // Generate new tokens
+    return this.generateJwt(
+      user.id,
+      user.email,
+      user.createdAt,
+      userAgent,
+      ipAddress,
+    );
+  }
+
+  async generateJwt(
+    id: number,
+    email: string,
+    createdAt: Date,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
     const payload = { sub: id, email: email };
+
+    const refreshTokenExpiresIn = Number(process.env.JWT_REFRESH_EXPIRES_IN!);
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: process.env.JWT_REFRESH_SECRET!,
+      expiresIn: refreshTokenExpiresIn,
+    });
+
+    // Calculate expiration date (JWT expiresIn is in seconds)
+    const expiresAt = new Date(Date.now() + refreshTokenExpiresIn * 1000);
+
+    const assignedRefreshToken = await this.prisma.refreshToken.create({
+      data: {
+        userId: id,
+        token: refreshToken,
+        userAgent: userAgent,
+        ipAddress: ipAddress,
+        expiresAt,
+      },
+    });
+
     return {
-      access_token: await this.jwtService.signAsync(payload),
+      accessToken: await this.jwtService.signAsync(payload),
+      refreshToken: assignedRefreshToken.token,
       user: {
         id: id,
         email: email,

@@ -25,8 +25,8 @@ model RefreshToken {
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   token     String
-  userAgent String
-  ipAddress String
+  userAgent String?
+  ipAddress String?
   expiresAt DateTime
   createdAt DateTime @default(now())
   revoked Boolean @default(false)

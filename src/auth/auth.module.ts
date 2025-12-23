@@ -6,6 +6,7 @@ import { AuthController } from "./auth.controller";
 import { PrismaModule } from "../prisma/prisma.module";
 import { LocalStrategy } from "./strategies/local.strategy";
 import { JwtStrategy } from "./strategies/jwt.strategy";
+import { RefreshTokenStrategy } from "./strategies/refresh-token.strategy";
 
 @Module({
   imports: [
@@ -13,14 +14,13 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
     PrismaModule,
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_SECRET,
+      secret: process.env.JWT_SECRET!,
       signOptions: {
-        // @ts-expect-error - JWT accepts string format like "1h", "7d" but types are strict
-        expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+        expiresIn: Number(process.env.JWT_EXPIRES_IN!),
       },
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, LocalStrategy, JwtStrategy, RefreshTokenStrategy],
   controllers: [AuthController],
   exports: [AuthService],
 })
