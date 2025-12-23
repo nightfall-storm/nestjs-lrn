@@ -105,6 +105,44 @@ export class AuthService {
     };
   }
 
+  async logout(userId: number, refreshToken: string) {
+    // Verify the refresh token is a valid JWT and belongs to the user
+    const payload = await this.jwtService.verifyAsync<{
+      sub: number;
+      email: string;
+    }>(refreshToken, {
+      secret: process.env.JWT_REFRESH_SECRET!,
+    });
+
+    // Ensure the token belongs to the authenticated user
+    if (payload.sub !== userId) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    // Verify token exists in database and belongs to user
+    const tokenEntity = await this.prisma.refreshToken.findFirst({
+      where: {
+        userId,
+        token: refreshToken,
+        revoked: false,
+      },
+    });
+
+    if (!tokenEntity) {
+      throw new UnauthorizedException(
+        "Refresh token not found or already revoked",
+      );
+    }
+
+    // Revoke the refresh token
+    await this.prisma.refreshToken.update({
+      where: { id: tokenEntity.id },
+      data: { revoked: true },
+    });
+
+    return { success: true, message: "Logged out successfully" };
+  }
+
   async register(authDto: AuthDto) {
     try {
       const { email, password } = authDto;

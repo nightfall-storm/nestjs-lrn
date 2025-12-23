@@ -2,10 +2,11 @@ import { Body, Controller, Post, UseGuards, Request } from "@nestjs/common"; // 
 import { AuthService } from "./auth.service";
 import { AuthDto } from "./dto/auth.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { LocalAuthGuard } from "./guards/local-auth.guard";
 import { RefreshTokenGuard } from "./guards/refresh-token.guard";
 import { Request as ExpressRequest } from "express";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 
 // 1. Create a typed Request interface so ESLint stays quiet
 interface RequestWithUser extends ExpressRequest {
@@ -79,5 +80,16 @@ export class AuthController {
   @ApiOperation({ summary: "Register a user" })
   register(@Body() authDto: AuthDto) {
     return this.authService.register(authDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post("logout")
+  @ApiOperation({ summary: "Logout a user" })
+  logout(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.authService.logout(req.user.id, refreshTokenDto.refreshToken);
   }
 }
