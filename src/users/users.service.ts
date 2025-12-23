@@ -54,6 +54,11 @@ export class UsersService {
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
+        select: {
+          id: true,
+          email: true,
+          createdAt: true,
+        },
         skip: (currentPage - 1) * perPage,
         take: perPage,
       }),
@@ -74,15 +79,16 @@ export class UsersService {
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        createdAt: true,
+      },
     });
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
-    return {
-      id: user?.id,
-      email: user?.email,
-      createdAt: user?.createdAt,
-    };
+    return user;
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
